@@ -1,5 +1,5 @@
 streamlit
-aspose.slides
+aspose-slides
 markdownify
 mammoth
 pandas
