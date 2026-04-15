@@ -8,7 +8,7 @@ from io import BytesIO
 from PIL import Image
 import os
 
-st.set_page_config(page_title="Zeins Converter Elite", page_icon="🚀")
+st.set_page_config(page_title="Zeins Ultra Converter", page_icon="🎨", layout="wide")
 
 CONTRASEÑA_MAESTRA = "Chris_PAss2026MKD@"
 
@@ -29,68 +29,81 @@ def image_to_base64(image_bytes):
         img = Image.open(BytesIO(image_bytes))
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
-        img.thumbnail((800, 800))
+        img.thumbnail((1000, 1000)) # Un poco más de calidad para que no sea "feo"
         buffered = BytesIO()
-        img.save(buffered, format="JPEG", quality=75)
+        img.save(buffered, format="JPEG", quality=85)
         img_str = base64.b64encode(buffered.getvalue()).decode()
-        return f"\n\n![imagen](data:image/jpeg;base64,{img_str})\n\n"
+        return f"\n\n![imagen](data:image/jpeg;base64,{img_str})\n"
     except:
-        return "\n\n> [Error en imagen]\n\n"
+        return ""
 
-st.title("📄 Convertidor de Alta Fidelidad")
-st.info("Modo de extracción secuencial (Mantiene el orden original)")
+st.title("🚀 UARM PPT Reconstructor")
+st.markdown("### Convierte con jerarquía visual para Claude/Gemini")
 
-incluir_imagenes = st.checkbox("🖼️ Incluir imágenes (Ordenadas)", value=True)
+incluir_imagenes = st.checkbox("🖼️ Mantener elementos visuales", value=True)
 
-uploaded_files = st.file_uploader("Selecciona archivos", type=["docx", "xlsx", "pptx"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Arrastra tu PPTX aquí", type=["pptx", "docx", "xlsx"], accept_multiple_files=True)
 
 if uploaded_files:
     for file in uploaded_files:
         ext = file.name.split(".")[-1].lower()
-        content = ""
         
         try:
-            if ext == "docx":
-                content = md(mammoth.convert_to_html(file).value)
-            elif ext == "xlsx":
-                df = pd.read_excel(file)
-                content = md(df.to_html(index=False))
-            elif ext == "pptx":
+            if ext == "pptx":
                 prs = Presentation(file)
-                slides_output = []
+                full_md = []
                 
                 for i, slide in enumerate(prs.slides):
-                    slides_output.append(f"--- \n## Slide {i+1}")
+                    # CABECERA DE SLIDE ESTILO "TARJETA"
+                    full_md.append(f"\n\n{'='*40}\n## 🎞️ DIAPOSITIVA {i+1}\n{'='*40}\n")
                     
-                    # ORDENAR ELEMENTOS POR POSICIÓN (Arriba hacia abajo)
-                    # Esto asegura que si una imagen está arriba del texto, salga primero
-                    shapes = sorted(slide.shapes, key=lambda s: (s.top, s.left))
+                    # 1. TÍTULO DEL SLIDE (Si existe, siempre va primero)
+                    if slide.shapes.title:
+                        full_md.append(f"# {slide.shapes.title.text}\n")
                     
-                    for shape in shapes:
-                        # 1. Si es Texto (incluye cuadros, formas con texto, etc.)
+                    # 2. CUERPO (Ordenado por lectura natural: Arriba -> Abajo)
+                    # Filtramos el título para no repetirlo
+                    other_shapes = [s for s in slide.shapes if s != slide.shapes.title]
+                    sorted_shapes = sorted(other_shapes, key=lambda s: (s.top, s.left))
+                    
+                    for shape in sorted_shapes:
+                        # Texto en cuadros o formas
                         if hasattr(shape, "text") and shape.text.strip():
-                            slides_output.append(shape.text)
+                            # Si es un cuadro de texto grande, le damos formato de bloque
+                            text = shape.text.strip()
+                            if len(text) > 100:
+                                full_md.append(f"\n{text}\n")
+                            else:
+                                full_md.append(f"### {text}")
                         
-                        # 2. Si es Imagen
+                        # Imágenes integradas en el flujo
                         elif incluir_imagenes and shape.shape_type == 13:
-                            img_str = image_to_base64(shape.image.blob)
-                            slides_output.append(img_str)
+                            full_md.append(image_to_base64(shape.image.blob))
                         
-                        # 3. Si es un Grupo de formas (procesar sub-formas)
-                        elif shape.shape_type == 6: # Group
-                            for s in sorted(shape.shapes, key=lambda x: (x.top, x.left)):
-                                if hasattr(s, "text") and s.text.strip():
-                                    slides_output.append(s.text)
-                    
-                    # Notas al final del slide
+                        # Tablas dentro del PPT
+                        elif shape.has_table:
+                            rows = []
+                            for row in shape.table.rows:
+                                rows.append([cell.text_frame.text.strip() for cell in row.cells])
+                            df_tmp = pd.DataFrame(rows)
+                            full_md.append("\n" + md(df_tmp.to_html(index=False, header=False)))
+
+                    # 3. NOTAS (Separadas visualmente)
                     if slide.has_notes_slide and slide.notes_slide.notes_text_frame.text.strip():
-                        slides_output.append(f"\n> **Notas:** {slide.notes_slide.notes_text_frame.text}")
+                        full_md.append(f"\n\n> 💡 **CONTEXTO ADICIONAL:**\n> {slide.notes_slide.notes_text_frame.text}")
 
-                content = "\n\n".join(slides_output)
+                content = "\n".join(full_md)
+            
+            # (Mantenemos la lógica de DOCX y XLSX igual que antes...)
+            elif ext == "docx":
+                content = md(mammoth.convert_to_html(file).value)
+            elif ext == "xlsx":
+                content = md(pd.read_excel(file).to_html(index=False))
 
-            with st.expander(f"✅ {file.name}"):
-                st.download_button(f"Descargar {file.name}.md", content, file_name=f"{file.name}.md")
+            st.success(f"¡{file.name} reconstruido!")
+            st.download_button(f"📥 Descargar {file.name}.md", content, file_name=f"{file.name}.md")
+            
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Error crítico: {e}")
 
-st.sidebar.write("By: Christopher Ccoicca")
+st.sidebar.info("Zeins Edition v3.0")
