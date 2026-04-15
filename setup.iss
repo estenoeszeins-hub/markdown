@@ -7,16 +7,19 @@ OutputDir=dist
 OutputBaseFilename=Instalador_Convertidor_Zeins
 Compression=lzma
 SolidCompression=yes
-; "admin" pide los permisos al iniciar la instalación
+; Pide permisos de administrador al iniciar la instalacion
 PrivilegesRequired=admin
-SetupIconFile=
 
 [Files]
+; Asegurate de que el nombre del .exe coincida con el que genera PyInstaller
 Source: "dist\Convertidor_Zeins_V1.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
+; Crea el acceso directo en el menu Inicio
 Name: "{autoprograms}\Convertidor MD Zeins"; Filename: "{app}\Convertidor_Zeins_V1.exe"
+; Crea el acceso directo en el Escritorio
 Name: "{autodesktop}\Convertidor MD Zeins"; Filename: "{app}\Convertidor_Zeins_V1.exe"
 
 [Run]
-Filename: "{app}\Convertidor_Zeins_V1.exe"; Description: "{cm:LaunchProgram,Convertidor MD Zeins}"; Flags: nowait postinstall skipifsilent
+; Opcion para ejecutar el programa justo despues de instalar
+Filename: "{app}\Convertidor_Zeins_V1.exe"; Description: "Lanzar Convertidor MD"; Flags: nowait postinstall skipifsilent
