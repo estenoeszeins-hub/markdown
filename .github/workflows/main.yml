@@ -25,12 +25,12 @@ jobs:
 
     - name: 1. Crear el EXE base
       run: |
-        pyinstaller --noconsole --onefile --name "Convertidor_MKD_V1" convertidor_pro.py
+        pyinstaller --noconsole --onefile --name "Convertidor_Zeins_V1" convertidor_pro.py
 
-    - name: 2. Crear el Instalador (.msi/.exe)
-      uses: AyimDomini/innosetup-action@v1.0.1
-      with:
-        filepath: setup.iss
+    - name: 2. Crear el Instalador con Inno Setup (Comando Directo)
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup.iss
+      shell: powershell
 
     - name: 3. Guardar Instalador Final
       uses: actions/upload-artifact@v4
