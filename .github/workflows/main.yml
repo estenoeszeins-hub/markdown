@@ -1,7 +1,10 @@
-name: Fabrica de EXE de Zeins
+name: Fabrica de Instalador de Zeins
 
 on:
-  workflow_dispatch: # Esto permite que tú actives la creación con un botón
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -16,17 +19,21 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Instalando Librerias Necessarias
+    - name: Instalando Librerias
       run: |
-        python -m pip install --upgrade pip
         pip install customtkinter mammoth pandas OpenPyXL python-pptx markdownify pyinstaller
 
-    - name: Compilando el programa a EXE
+    - name: 1. Crear el EXE base
       run: |
-        pyinstaller --noconsole --onefile --name "Convertidor_Zeins_V1" convertidor_pro.py
+        pyinstaller --noconsole --onefile --name "Convertidor_MKD_V1" convertidor_pro.py
 
-    - name: Guardar el resultado para descargar
+    - name: 2. Crear el Instalador (.msi/.exe)
+      uses: AyimDomini/innosetup-action@v1.0.1
+      with:
+        filepath: setup.iss
+
+    - name: 3. Guardar Instalador Final
       uses: actions/upload-artifact@v4
       with:
-        name: Programa_MD_Listo
-        path: dist/Convertidor_Zeins_V1.exe
+        name: Instalador_Zeins_Completo
+        path: dist/Instalador_Convertidor_Zeins.exe
