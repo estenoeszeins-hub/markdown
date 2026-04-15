@@ -8,83 +8,132 @@ from io import BytesIO
 from PIL import Image
 import os
 
+# --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Zeins Converter Pro", page_icon="🚀")
 
+# --- CONFIGURACIÓN DE ACCESO ---
 CONTRASEÑA_MAESTRA = "Chris_PAss2026MKD@"
 
-# --- LOGIN ---
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
+# --- SISTEMA DE LOGIN ---
 if not st.session_state['autenticado']:
     st.title("🔐 Acceso Restringido")
-    pass_input = st.text_input("Contraseña:", type="password")
+    st.subheader("UARM Edition - Christopher Ccoicca")
+    
+    pass_input = st.text_input("Introduce la contraseña de Chris:", type="password")
+    
     if st.button("Entrar"):
         if pass_input == CONTRASEÑA_MAESTRA:
             st.session_state['autenticado'] = True
+            st.success("Acceso concedido...")
             st.rerun()
         else:
-            st.error("Incorrecto")
+            st.error("Contraseña incorrecta.")
     st.stop()
 
-# --- INTERFAZ ---
-st.title("📄 Convertidor Multi-Formato a MD")
-st.info("Creado por Christopher Ccoicca para la UARM")
-
-# --- NUEVA FUNCIÓN: CHECKBOX DE IMÁGENES ---
-incluir_imagenes = st.checkbox("🖼️ Incluir imágenes (Aumenta el peso del archivo)", value=False)
-
-uploaded_files = st.file_uploader("Sube tus archivos", type=["docx", "xlsx", "pptx"], accept_multiple_files=True)
-
+# --- FUNCIONES DE PROCESAMIENTO ---
 def image_to_base64(image_bytes):
-    """Optimiza y convierte imagen a Base64 para MD."""
-    img = Image.open(BytesIO(image_bytes))
-    # Redimensionar para que no pese tanto (Max 800px)
-    img.thumbnail((800, 800))
-    buffered = BytesIO()
-    img.save(buffered, format="JPEG", quality=70) # Comprime a JPG 70%
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-    return f"![imagen](data:image/jpeg;base64,{img_str})"
+    """
+    Optimiza la imagen: resuelve el error 'Mode P', 
+    redimensiona a 800px y comprime a JPG.
+    """
+    try:
+        img = Image.open(BytesIO(image_bytes))
+        
+        # Corregir error de modo P o RGBA (transparencias) para poder guardar como JPEG
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        
+        # Redimensionar para ahorrar tokens y peso (máximo 800px)
+        img.thumbnail((800, 800))
+        
+        buffered = BytesIO()
+        img.save(buffered, format="JPEG", quality=70) # Calidad 70% para equilibrio peso/detalle
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        
+        return f"\n\n![imagen](data:image/jpeg;base64,{img_str})\n\n"
+    except Exception as e:
+        return f"\n\n> [!ERROR] No se pudo procesar una imagen: {e}\n\n"
+
+# --- INTERFAZ PRINCIPAL ---
+st.title("📄 Convertidor de Documentos a Markdown")
+st.info("Herramienta optimizada para IA (Claude/Gemini/GPT)")
+
+# Opciones de conversión
+col1, col2 = st.columns(2)
+with col1:
+    incluir_imagenes = st.checkbox("🖼️ Incluir imágenes (Base64)", value=False)
+with col2:
+    incluir_notas = st.checkbox("💡 Incluir notas del orador", value=True)
+
+uploaded_files = st.file_uploader("Selecciona archivos (DOCX, XLSX, PPTX)", 
+                                  type=["docx", "xlsx", "pptx"], 
+                                  accept_multiple_files=True)
 
 if uploaded_files:
+    st.markdown("---")
     for file in uploaded_files:
         ext = file.name.split(".")[-1].lower()
         content = ""
         
         try:
+            # --- PROCESAR WORD ---
             if ext == "docx":
-                # Mammoth maneja imágenes si se configura, por ahora texto:
-                content = md(mammoth.convert_to_html(file).value)
+                html = mammoth.convert_to_html(file).value
+                content = md(html)
             
+            # --- PROCESAR EXCEL ---
             elif ext == "xlsx":
                 df = pd.read_excel(file)
-                content = md(df.to_html(index=False))
+                html_table = df.to_html(index=False)
+                content = md(html_table)
             
+            # --- PROCESAR POWERPOINT ---
             elif ext == "pptx":
                 prs = Presentation(file)
-                slides_text = []
+                slides_text = [f"# Presentación: {file.name}\n"]
+                
                 for i, slide in enumerate(prs.slides):
-                    slides_text.append(f"## Slide {i+1}")
-                    # Extraer Texto
+                    slides_text.append(f"--- \n## Slide {i+1}")
+                    
+                    # Extraer texto y/o imágenes por cada forma en el slide
                     for shape in slide.shapes:
-                        if hasattr(shape, "text"):
+                        # Texto
+                        if hasattr(shape, "text") and shape.text.strip():
                             slides_text.append(shape.text)
                         
-                        # --- LÓGICA DE IMÁGENES ---
+                        # Imágenes (Solo si el checkbox está activo)
                         if incluir_imagenes and shape.shape_type == 13: # 13 es tipo Imagen
-                            img_bytes = shape.image.blob
-                            slides_text.append(image_to_base64(img_bytes))
+                            img_base64 = image_to_base64(shape.image.blob)
+                            slides_text.append(img_base64)
                     
-                    # Extraer Notas del Orador (Opcional pero recomendado)
-                    if slide.has_notes_slide:
+                    # Notas del orador (Si el checkbox está activo)
+                    if incluir_notas and slide.has_notes_slide:
                         notas = slide.notes_slide.notes_text_frame.text
-                        if notas:
-                            slides_text.append(f"\n> **Notas:** {notas}")
+                        if notas.strip():
+                            slides_text.append(f"\n> **Notas del slide:** {notas}")
                 
                 content = "\n\n".join(slides_text)
 
-            st.success(f"Procesado: {file.name}")
-            st.download_button(f"📥 Descargar {file.name}.md", content, file_name=f"{file.name}.md")
-            
+            # --- RESULTADOS ---
+            with st.expander(f"✅ {file.name} listo"):
+                st.text_area("Vista previa (Markdown):", content[:1000] + "...", height=150)
+                base_name = os.path.splitext(file.name)[0]
+                st.download_button(
+                    label=f"📥 Descargar {base_name}.md",
+                    data=content,
+                    file_name=f"{base_name}.md",
+                    mime="text/markdown",
+                    key=file.name
+                )
+                
         except Exception as e:
-            st.error(f"Error en {file.name}: {e}")
+            st.error(f"Error procesando {file.name}: {str(e)}")
+
+# PIE DE PÁGINA
+st.sidebar.markdown("---")
+st.sidebar.write("### Creado por:")
+st.sidebar.success("Christopher Ccoicca")
+st.sidebar.write("Universidad Antonio Ruiz de Montoya")
