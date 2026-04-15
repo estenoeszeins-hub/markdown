@@ -1,0 +1,6 @@
+streamlit
+mammoth
+pandas
+openpyxl
+python-pptx
+markdownify
