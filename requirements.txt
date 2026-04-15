@@ -1,7 +1,7 @@
 streamlit
-aspose-slides
-markdownify
 mammoth
 pandas
 openpyxl
+python-pptx
+markdownify
 Pillow
