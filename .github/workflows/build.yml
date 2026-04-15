@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Descargando codigo
+    - name: Descargando codigo de Zeins
       uses: actions/checkout@v4
 
     - name: Configurando Python
@@ -19,21 +19,22 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Instalando Librerias
+    - name: Instalando Librerias de Conversion
       run: |
+        python -m pip install --upgrade pip
         pip install customtkinter mammoth pandas OpenPyXL python-pptx markdownify pyinstaller
 
-    - name: 1. Crear el EXE base
+    - name: 1. Creando el archivo EXE unico
       run: |
         pyinstaller --noconsole --onefile --name "Convertidor_Zeins_V1" convertidor_pro.py
 
-    - name: 2. Crear el Instalador con Inno Setup (Comando Directo)
+    - name: 2. Empaquetando en Instalador Profesional
       run: |
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup.iss
       shell: powershell
 
-    - name: 3. Guardar Instalador Final
+    - name: 3. Subiendo el instalador para descargar
       uses: actions/upload-artifact@v4
       with:
-        name: Instalador_Zeins_Completo
+        name: Software_Zeins_Listo
         path: dist/Instalador_Convertidor_Zeins.exe
